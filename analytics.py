@@ -4,6 +4,10 @@ import sqlite3
 def run_analytics(db_path='warehouse.db'):
     conn = sqlite3.connect(db_path)
 
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.width', 1000)
+
     df = pd.read_sql("SELECT * FROM pres_big_table", conn)
 
     print("=== RETAIL PERFORMANCE INSIGHTS ===")
@@ -23,17 +27,24 @@ def run_analytics(db_path='warehouse.db'):
     top_items = df.nlargest(3, 'price_usd')[['item_name', 'price_usd', 'source_country']]
     print(f"\n[3] Top 3 Premium Items:\n{top_items}")
 
-    # 4. Currency Impact Summary
-    # Insight: Compare raw Japan JPY vs standardized USD to see the conversion scale.
-    # (Only applies if you kept the original price column during transformation)
-    if 'price' in df.columns:
-        jp_sample = df[df['source_country'] == 'Japan'].head(1)
-        print(f"\n[4] Currency Check (Japan): {jp_sample['price'].values[0]} JPY -> ${jp_sample['price_usd'].values[0]:.2f} USD")
+    # 4. Category Revenue Contribution
+    # Insight: Calculates which category generates the most potential revenue (Price * Quantity)
+    df['total_value'] = df['price_usd'] * df['quantity']
+    cat_perf = df.groupby(['source_country', 'item_category'])['total_value'].sum().unstack().fillna(0)
+    print("\n[4] Category Value Contribution per Country (USD):")
+    print(cat_perf)
 
-    # 5. Data Cleanliness Score
-    # Insight: Check for any remaining nulls or 'Unknown' placeholders.
-    null_count = (df == 'Unknown').sum().sum()
-    print(f"\n[5] Data Integrity: {null_count} placeholders found in final dataset.")
+    # 5. Strategic Category Gap Analysis
+    # Insight: Identifies which categories exist in one country but are missing in the other
+    pivot_count = df.groupby(['item_category', 'source_country']).size().unstack(fill_value=0)
+    gaps = pivot_count[(pivot_count['Japan'] == 0) | (pivot_count['Myanmar'] == 0)]
+
+    print("\n[5] Strategic Growth: Category Gaps Identified")
+    if not gaps.empty:
+        print("The following categories are exclusive to one region and represent expansion opportunities:")
+        print(gaps)
+    else:
+        print("Inventory Synergy: Both regions currently carry all the same categories.")
 
     conn.close()
 

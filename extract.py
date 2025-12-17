@@ -9,6 +9,9 @@ def load_csv(csv_path, table_name, db_path='warehouse.db'):
     conn = sqlite3.connect(db_path)
     try:
         df = pd.read_csv(csv_path)
+
+        df.columns = [col.replace("'", "").strip() for col in df.columns]
+
         df.to_sql(f"stage_{table_name}", conn, if_exists='replace', index=False)
         print(f"Success! {table_name} loaded into staging area.")
     except Exception as e:
