@@ -1,17 +1,14 @@
-import sqlite3
 import pandas as pd
+from sqlalchemy import create_engine
 
-def clean_sqlite_table(db_path='warehouse.db'):
-    """
-    read from staging and perform data cleaning
-    Standardize values across datasets (e.g., Japan store item prices in JPY and Myanmar store item prices in USD are converted to a common currency or format).
-    """
-    conn = sqlite3.connect(db_path)
+DB_URL = "postgresql://martinito_etl_db_user:G8pGEOXUIW0SI9ePZ5WrZYqB8Tb0TNfG@dpg-d7sqcahkh4rs7399qsrg-a.singapore-postgres.render.com/martinito_etl_db"
+engine = create_engine(DB_URL)
 
+def clean_table():
     JYP_to_USD = 0.0073
 
-    df_j_items = pd.read_sql("SELECT * FROM stage_japan_items", conn)
-    df_j_sales = pd.read_sql("SELECT * FROM stage_japan_sales", conn)
+    df_j_items = pd.read_sql("SELECT * FROM stage_japan_items", engine)
+    df_j_sales = pd.read_sql("SELECT * FROM stage_japan_sales", engine)
     df_japan = pd.merge(df_j_sales, df_j_items, left_on='product_id', right_on='id', how='left')
 
     df_japan.columns = df_japan.columns.str.strip().str.lower()
@@ -22,10 +19,10 @@ def clean_sqlite_table(db_path='warehouse.db'):
     df_japan['source_country'] = 'Japan'
 
     cols_to_keep = ['invoice_id', 'item_name', 'item_category', 'price_usd', 'quantity', 'source_country']
-    df_japan[cols_to_keep].to_sql("trans_japan", conn, if_exists='replace', index=False)
+    df_japan[cols_to_keep].to_sql("trans_japan", engine, if_exists='replace', index=False)
 
-    df_m_items = pd.read_sql("SELECT * FROM stage_myanmar_items", conn)
-    df_m_sales = pd.read_sql("SELECT * FROM stage_myanmar_sales", conn)
+    df_m_items = pd.read_sql("SELECT * FROM stage_myanmar_items", engine)
+    df_m_sales = pd.read_sql("SELECT * FROM stage_myanmar_sales", engine)
     df_myanmar = pd.merge(df_m_sales, df_m_items, left_on='product_id', right_on='id', how='left')
 
     df_myanmar.columns = df_myanmar.columns.str.strip().str.lower()
@@ -35,8 +32,7 @@ def clean_sqlite_table(db_path='warehouse.db'):
     df_myanmar['price_usd'] = df_myanmar['price']
     df_myanmar['source_country'] = 'Myanmar'
 
-    df_myanmar[cols_to_keep].to_sql("trans_myanmar", conn, if_exists='replace', index=False)
+    df_myanmar[cols_to_keep].to_sql("trans_myanmar", engine, if_exists='replace', index=False)
 
-    conn.close()
     print("Transformation completed! The data is cleaned and standardized.")
 

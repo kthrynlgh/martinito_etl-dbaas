@@ -1,14 +1,15 @@
 import pandas as pd
-import sqlite3
+from sqlalchemy import create_engine
 
-def run_analytics(db_path='warehouse.db'):
-    conn = sqlite3.connect(db_path)
+DB_URL = "postgresql://martinito_etl_db_user:G8pGEOXUIW0SI9ePZ5WrZYqB8Tb0TNfG@dpg-d7sqcahkh4rs7399qsrg-a.singapore-postgres.render.com/martinito_etl_db"
+engine = create_engine(DB_URL)
 
+def run_analytics():
     pd.set_option('display.max_columns', None)
     pd.set_option('display.max_rows', None)
     pd.set_option('display.width', 1000)
 
-    df = pd.read_sql("SELECT * FROM pres_big_table", conn)
+    df = pd.read_sql("SELECT * FROM pres_big_table", engine)
 
     print("=== RETAIL PERFORMANCE INSIGHTS ===")
 
@@ -45,8 +46,6 @@ def run_analytics(db_path='warehouse.db'):
         print(gaps)
     else:
         print("Inventory Synergy: Both regions currently carry all the same categories.")
-
-    conn.close()
 
 if __name__ == "__main__":
     run_analytics()
